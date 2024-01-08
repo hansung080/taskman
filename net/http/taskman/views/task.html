@@ -1,0 +1,93 @@
+<!-- Reference the documents of Go Text Template at https://pkg.go.dev/text/template -->
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>TaskMan - {{.Task.Title}}</title>
+    <link rel="stylesheet" href="/css/styles.css"/>
+  </head>
+  <body>
+    <script>
+      /* XHR Ready State */
+      const XHR_READY_STATE_CREATED   = 0 // XMLHttpRequest has been created.
+      const XHR_READY_STATE_OPENED    = 1 // XMLHttpRequest has been initialized by calling the open method.
+      const XHR_READY_STATE_SENT      = 2 // Request has been sent by calling the send method.
+      const XHR_READY_STATE_RECEIVING = 3 // Response has been started receiving.
+      const XHR_READY_STATE_RECEIVED  = 4 // Response has been received completely.
+
+      /* HTTP Response Status */
+      const HTTP_STATUS_OK          = 200
+      const HTTP_STATUS_CREATED     = 201
+      const HTTP_STATUS_NO_CONTENT  = 204
+      const HTTP_STATUS_BAD_REQUEST = 400
+
+      function setStatusSync(id, status) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "/api/v1/tasks/" + id, false);
+        xhr.send();
+        const resp = JSON.parse(xhr.responseText);
+        const task = resp.task;
+        task.status = status;
+
+        xhr.open("PUT", "/api/v1/tasks/" + id, false);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.send("task=" + encodeURIComponent(JSON.stringify(task)));
+        location.reload();
+      }
+
+      function setStatusAsync(id, status) {
+        let xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = (event) => {
+          if (xhr.readyState === XHR_READY_STATE_RECEIVED && xhr.status === HTTP_STATUS_OK) {
+            const resp = JSON.parse(xhr.responseText);
+            const task = resp.task;
+            task.status = status;
+
+            xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = (event) => {
+              if (xhr.readyState === XHR_READY_STATE_RECEIVED && xhr.status === HTTP_STATUS_OK) {
+                const resp = JSON.parse(xhr.responseText);
+                const task = resp.task;
+                const status = document.getElementById("status");
+                status.innerText = task.status;
+              }
+            }
+            xhr.open("PUT", "/api/v1/tasks/" + id, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.send("task=" + encodeURIComponent(JSON.stringify(task)));
+          }
+        }
+        xhr.open("GET", "/api/v1/tasks/" + id, true);
+        xhr.send();
+      }
+
+      function setStatus(id, status, async = false) {
+        if (async) setStatusAsync(id, status);
+        else setStatusSync(id, status)
+      }
+    </script>
+    {{with .Error.Err}}
+    <p>{{.}}</p>
+    {{end}}
+    {{with .Task}}
+    <h1>{{.Title}}</h1>
+    <ul>
+      {{with .Status.String}}
+      <li>Status: <span id="status">{{.}}</span></li>
+      {{end}}
+      {{with .Deadline}}
+      <li>Deadline: {{.}}</li>
+      {{end}}
+      {{with .Priority}}
+      <li>Priority: {{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+    <p>
+      Change Status:
+      <button onclick="setStatus('{{.ID}}', 'Todo', true);">Mark as Todo</button>
+      <button onclick="setStatus('{{.ID}}', 'Done', true);">Mark as Done</button>
+    </p>
+  </body>
+</html>
